@@ -302,7 +302,8 @@ void ICMPv6::write_serialization(uint8_t* buffer, uint32_t total_sz) {
         }
     }
     // Initially set checksum to 0, we'll calculate it at the end
-    header_.cksum = 0;
+    if( auto_cksum() )
+        header_.cksum = 0;
     // Update the MLRM record count before writing the header
     if (type() == MLD2_REPORT) {
         header_.mlrm2.record_count = Endian::host_to_be<uint16_t>(multicast_records_.size());
@@ -379,7 +380,8 @@ void ICMPv6::write_serialization(uint8_t* buffer, uint32_t total_sz) {
         while (checksum >> 16) {
             checksum = (checksum & 0xffff) + (checksum >> 16);
         }
-        header_.cksum = ~checksum & 0xffff;
+        if( auto_cksum() )
+            header_.cksum = ~checksum & 0xffff;
         memcpy(buffer + 2, &header_.cksum, sizeof(uint16_t));
     }
 }

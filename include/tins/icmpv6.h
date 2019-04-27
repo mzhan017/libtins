@@ -1494,6 +1494,15 @@ public:
      * option is not found.
      */
     dns_search_list_type dns_search_list() const;
+
+    /**
+     * \brief Sets/Gets auto_cksum
+     *
+     * \param value to set the auto_cksum_
+     */
+    void auto_cksum(bool value) { auto_cksum_ = value; }
+    bool auto_cksum() { return auto_cksum_; }
+
 private:
     TINS_BEGIN_PACK
     struct icmp6_header {
@@ -1601,6 +1610,7 @@ private:
     sources_list sources_;
     ICMPExtensionsStructure extensions_;
     bool use_mldv2_;
+    bool auto_cksum_;
 };
 
 } // Tins
