@@ -1,0 +1,3 @@
+#how to build the icmpv6_ptb.cpp
+#1. firstly need make/install the libtins
+#2. g++ -std=c++11 -lpthread -ltins icmpv6_ptb.cpp -o icmpv6_ptb
