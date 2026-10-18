@@ -86,14 +86,18 @@ void DNS::skip_to_dname_end(InputMemoryStream& stream) const {
             break;
         }
         else {
-            if ((value & 0xc0)) {
-                // This is an offset label, skip the second byte and we're done
+            const uint8_t offset_discriminator = value & 0xc0;
+            if (offset_discriminator == 0xc0) {
+                // This is an offset pointer, skip the second byte and we're done
                 stream.skip(1);
                 break;
             }
-            else {
+            else if (offset_discriminator == 0) {
                 // This is an actual label, skip its contents
                 stream.skip(value);
+            } else {
+                // high order two bits of the first octet of a label must be either 11 or 00
+                throw malformed_packet();
             }
         }
     }
@@ -336,9 +340,13 @@ uint32_t DNS::compose_name(const uint8_t* ptr, char* out_ptr) const {
     const uint8_t* end = &records_data_[0] + records_data_.size();
     const uint8_t* end_ptr = 0;
     char* current_out_ptr = out_ptr;
+    uint8_t pointer_counter = 0;
     while (*ptr) {
+        if (pointer_counter++ > 30){
+            throw dns_decompression_pointer_loops();
+        }
         // It's an offset
-        if ((*ptr & 0xc0)) {
+        if (((*ptr & 0xc0) == 0xc0)) {
             if (TINS_UNLIKELY(ptr + sizeof(uint16_t) > end)) {
                 throw malformed_packet();
             }
@@ -347,7 +355,7 @@ uint32_t DNS::compose_name(const uint8_t* ptr, char* out_ptr) const {
             index = Endian::be_to_host(index) & 0x3fff;
             // Check that the offset is neither too low or too high
             if (index < 0x0c || (&records_data_[0] + (index - 0x0c)) >= end) {
-                throw malformed_packet();
+                throw dns_decompression_pointer_out_of_bounds();
             }
             // We've probably found the end of the original domain name. Save it.
             if (end_ptr == 0) {
@@ -410,10 +418,11 @@ void DNS::inline_convert_v4(uint32_t value, char* output) {
 // Parses records in some section.
 void DNS::convert_records(const uint8_t* ptr,
                           const uint8_t* end,
-                          resources_type& res) const {
+                          resources_type& res,
+                          const uint16_t rr_count) const {
     InputMemoryStream stream(ptr, end - ptr);
     char dname[256], small_addr_buf[256];
-    while (stream) {
+    while (stream && (res.size() < rr_count)) {
         string data;
         bool used_small_buffer = false;
         // Retrieve the record's domain name.
@@ -573,7 +582,8 @@ DNS::resources_type DNS::answers() const {
         convert_records(
             &records_data_[0] + answers_idx_, 
             &records_data_[0] + authority_idx_, 
-            res
+            res,
+            answers_count()
         );
     }
     return res;
@@ -585,7 +595,8 @@ DNS::resources_type DNS::authority() const {
         convert_records(
             &records_data_[0] + authority_idx_, 
             &records_data_[0] + additional_idx_, 
-            res
+            res,
+            authority_count()
         );
     }
     return res;
@@ -597,7 +608,8 @@ DNS::resources_type DNS::additional() const {
         convert_records(
             &records_data_[0] + additional_idx_, 
             &records_data_[0] + records_data_.size(), 
-            res
+            res,
+            additional_count()
         );
     }
     return res;

@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.1)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(libtins)
 
 OPTION(LIBTINS_BUILD_EXAMPLES "Build examples" ON)
@@ -46,7 +46,7 @@ ENDIF(LIBTINS_BUILD_SHARED)
 
 # The version number.
 SET(TINS_VERSION_MAJOR 4)
-SET(TINS_VERSION_MINOR 3)
+SET(TINS_VERSION_MINOR 7)
 SET(TINS_VERSION_PATCH 0)
 SET(LIBTINS_VERSION "${TINS_VERSION_MAJOR}.${TINS_VERSION_MINOR}")
 
@@ -303,7 +303,13 @@ IF(LIBTINS_BUILD_TESTS)
         ENABLE_TESTING()
         ADD_SUBDIRECTORY(tests)
     ELSE()
-        MESSAGE(STATUS "googletest git submodule is absent. Run `git submodule init && git submodule update` to get it")
+        FIND_PACKAGE(GTest QUIET)
+        IF(${GTest_FOUND})
+            ENABLE_TESTING()
+            ADD_SUBDIRECTORY(tests)
+        ELSE()
+            MESSAGE(STATUS "googletest git submodule is absent. Run `git submodule init && git submodule update` to get it")
+        ENDIF()
     ENDIF()
 ENDIF()
 
@@ -312,7 +318,7 @@ ENDIF()
 # **********************************
 
 if(UNIX)
-    set(CONF_CMAKE_INSTALL_DIR lib/cmake/libtins)
+    set(CONF_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/libtins")
 else()
     set(CONF_CMAKE_INSTALL_DIR CMake)
 endif()
